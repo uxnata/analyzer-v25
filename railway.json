@@ -1,10 +1,10 @@
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
-    "builder": "NIXPACKS"
+    "builder": "DOCKERFILE"
   },
   "deploy": {
-    "startCommand": "npm run start",
+    "startCommand": "npm start",
     "healthcheckPath": "/",
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",
@@ -13,7 +13,8 @@
   "environments": {
     "production": {
       "variables": {
-        "NEXT_DISABLE_SWC": "1"
+        "NEXT_DISABLE_SWC": "1",
+        "NEXT_TELEMETRY_DISABLED": "1"
       }
     }
   }
