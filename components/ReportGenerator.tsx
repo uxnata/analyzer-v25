@@ -9,8 +9,6 @@ import {
   ArrowLeft,
   FileText as FileTextIcon
 } from 'lucide-react'
-import jsPDF from 'jspdf'
-import html2canvas from 'html2canvas'
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx'
 import { saveAs } from 'file-saver'
 
@@ -1040,117 +1038,6 @@ export function ReportGenerator({ result, onBack }: ReportGeneratorProps) {
     return html
   }
 
-  const generatePDFReport = async (data: any): Promise<string> => {
-    // Создаем PDF с помощью jsPDF
-    const pdf = new jsPDF('p', 'mm', 'a4')
-    const pageWidth = pdf.internal.pageSize.getWidth()
-    const pageHeight = pdf.internal.pageSize.getHeight()
-    let yPosition = 20
-
-    // Функция для добавления текста с переносом строк и поддержкой кириллицы
-    const addText = (text: string, fontSize: number = 12, isBold: boolean = false) => {
-      pdf.setFontSize(fontSize)
-      // Используем стандартный шрифт, который поддерживает кириллицу
-      pdf.setFont('helvetica', isBold ? 'bold' : 'normal')
-      
-      // Конвертируем текст в UTF-8 для правильного отображения кириллицы
-      const utf8Text = unescape(encodeURIComponent(text))
-      const lines = pdf.splitTextToSize(utf8Text, pageWidth - 40)
-      lines.forEach((line: string) => {
-        if (yPosition > pageHeight - 20) {
-          pdf.addPage()
-          yPosition = 20
-        }
-        pdf.text(line, 20, yPosition)
-        yPosition += fontSize * 0.4
-      })
-      yPosition += 5
-    }
-
-    // Заголовок
-    addText('UX Анализ - Детальный отчет', 20, true)
-    addText(`Дата генерации: ${new Date().toLocaleString('ru-RU')}`, 10)
-    yPosition += 10
-
-    // Обзор
-    addText('ОБЗОР АНАЛИЗА', 16, true)
-    addText(data.overview?.summary || 'Анализ завершен успешно', 12)
-    yPosition += 10
-
-    // Ключевые находки
-    if (data.overview?.keyFindings?.length > 0) {
-      addText('КЛЮЧЕВЫЕ НАХОДКИ', 16, true)
-      data.overview.keyFindings.forEach((finding: string, index: number) => {
-        addText(`${index + 1}. ${finding}`, 12)
-      })
-      yPosition += 10
-    }
-
-    // Метрики
-    if (data.metrics) {
-      addText('МЕТРИКИ', 16, true)
-      addText(`Удовлетворенность: ${data.metrics.satisfaction || 0}%`, 12)
-      addText(`Удобство использования: ${data.metrics.usability || 0}%`, 12)
-      addText(`Вовлеченность: ${data.metrics.engagement || 0}%`, 12)
-      addText(`Конверсия: ${data.metrics.conversion || 0}%`, 12)
-      addText(`NPS: ${data.metrics.nps || 0}`, 12)
-      addText(`Удержание: ${data.metrics.retention || 0}%`, 12)
-      yPosition += 10
-    }
-
-    // Проблемы пользователей
-    if (data.insights?.painPoints?.length > 0) {
-      addText('КЛЮЧЕВЫЕ ПРОБЛЕМЫ', 16, true)
-      data.insights.painPoints.forEach((pain: any, index: number) => {
-        addText(`${index + 1}. ${pain.pain || 'Проблема не определена'}`, 12, true)
-        addText(`   Приоритет: ${pain.severity || 'medium'}`, 10)
-        addText(`   Влияние: ${pain.impact || 'Не определено'}`, 10)
-        yPosition += 5
-      })
-      yPosition += 10
-    }
-
-    // Потребности пользователей
-    if (data.insights?.userNeeds?.length > 0) {
-      addText('ПОТРЕБНОСТИ ПОЛЬЗОВАТЕЛЕЙ', 16, true)
-      data.insights.userNeeds.forEach((need: any, index: number) => {
-        addText(`${index + 1}. ${need.need || 'Потребность не определена'}`, 12, true)
-        addText(`   Приоритет: ${need.priority || 'medium'}`, 10)
-        addText(`   Влияние: ${need.impact || 'Не определено'}`, 10)
-        yPosition += 5
-      })
-      yPosition += 10
-    }
-
-    // Рекомендации
-    if (data.recommendations) {
-      addText('РЕКОМЕНДАЦИИ', 16, true)
-      
-      if (data.recommendations.immediate?.length > 0) {
-        addText('Немедленные действия:', 14, true)
-        data.recommendations.immediate.forEach((rec: string, index: number) => {
-          addText(`${index + 1}. ${rec}`, 12)
-        })
-      }
-      
-      if (data.recommendations.shortTerm?.length > 0) {
-        addText('Краткосрочные (1-3 месяца):', 14, true)
-        data.recommendations.shortTerm.forEach((rec: string, index: number) => {
-          addText(`${index + 1}. ${rec}`, 12)
-        })
-      }
-      
-      if (data.recommendations.longTerm?.length > 0) {
-        addText('Долгосрочные (3+ месяца):', 14, true)
-        data.recommendations.longTerm.forEach((rec: string, index: number) => {
-          addText(`${index + 1}. ${rec}`, 12)
-        })
-      }
-    }
-
-    // Возвращаем PDF как base64 строку
-    return pdf.output('datauristring')
-  }
 
   const generateDOCXReport = async (data: any): Promise<string> => {
     
@@ -1675,9 +1562,6 @@ export function ReportGenerator({ result, onBack }: ReportGeneratorProps) {
     })
   }
 
-  const generateJSONReport = (data: any): string => {
-    return JSON.stringify(data, null, 2)
-  }
 
   const downloadReport = (format: string, content: string) => {
     const element = document.createElement('a')
@@ -1689,20 +1573,10 @@ export function ReportGenerator({ result, onBack }: ReportGeneratorProps) {
         const htmlBlob = new Blob([content], { type: 'text/html' })
         element.href = URL.createObjectURL(htmlBlob)
         break
-      case 'pdf':
-        filename += '.pdf'
-        // content уже является data URL для PDF
-        element.href = content
-        break
       case 'docx':
         filename += '.docx'
         // content уже является data URL для DOCX
         element.href = content
-        break
-      case 'json':
-        filename += '.json'
-        const jsonBlob = new Blob([content], { type: 'application/json' })
-        element.href = URL.createObjectURL(jsonBlob)
         break
       default:
         const textBlob = new Blob([content], { type: 'text/plain' })
