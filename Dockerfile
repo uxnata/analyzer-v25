@@ -5,8 +5,8 @@ WORKDIR /app
 # Копируем package.json и package-lock.json
 COPY package*.json ./
 
-# Устанавливаем зависимости
-RUN npm ci --only=production
+# Устанавливаем все зависимости (включая dev для сборки)
+RUN npm ci
 
 # Копируем исходный код
 COPY . .
@@ -17,6 +17,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 # Собираем приложение
 RUN npm run build
+
+# Удаляем dev зависимости для оптимизации образа
+RUN npm prune --production
 
 # Открываем порт
 EXPOSE 3000
