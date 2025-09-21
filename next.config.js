@@ -4,6 +4,10 @@ const nextConfig = {
     domains: ['localhost'],
   },
   swcMinify: false,
+  compiler: {
+    // Отключаем SWC полностью
+    removeConsole: false,
+  },
   experimental: {
     forceSwcTransforms: false,
   },

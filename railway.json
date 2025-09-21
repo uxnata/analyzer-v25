@@ -9,5 +9,12 @@
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
+  },
+  "environments": {
+    "production": {
+      "variables": {
+        "NEXT_DISABLE_SWC": "1"
+      }
+    }
   }
 }
