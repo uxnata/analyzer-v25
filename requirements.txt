@@ -1,0 +1,6 @@
+requests>=2.31.0
+tqdm>=4.66.0
+pathlib2>=2.3.7
+numpy>=1.21.0
+python-docx>=0.8.11
+weasyprint>=60.0

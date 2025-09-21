@@ -1,0 +1,16 @@
+{
+  "name": "UX Analyzer Web",
+  "short_name": "UX Analyzer",
+  "description": "AI-powered UX Research Analysis with Claude 3.5 Sonnet",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#030213",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
