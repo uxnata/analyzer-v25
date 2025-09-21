@@ -1552,7 +1552,7 @@ export function ReportGenerator({ result, onBack }: ReportGeneratorProps) {
 
     // Генерируем DOCX как blob
     const buffer = await Packer.toBuffer(doc)
-    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
+    const blob = new Blob([new Uint8Array(buffer)], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
     
     // Возвращаем как data URL
     return new Promise((resolve) => {
