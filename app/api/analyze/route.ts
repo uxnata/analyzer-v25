@@ -1370,7 +1370,7 @@ export async function POST(request: NextRequest) {
     console.log(`🤖 Модель: ${model}`)
     
     // Детальная информация о транскриптах
-    transcripts.forEach((transcript, index) => {
+    transcripts.forEach((transcript: string, index: number) => {
       console.log(`  Транскрипт ${index + 1}: ${transcript.length} символов`)
       console.log(`  Начало: ${transcript.substring(0, 100)}...`)
     })
