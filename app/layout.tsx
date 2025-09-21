@@ -1,33 +1,30 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import './globals.css'
 
-const inter = Inter({ subsets: ['latin'] })
-
 export const metadata: Metadata = {
-  title: 'UX Analyzer V25.0 - OpenRouter Edition',
-  description: 'AI-powered UX Research Analysis with Claude 3.5 Sonnet',
-  keywords: ['UX Research', 'AI Analysis', 'User Experience', 'Claude', 'OpenRouter'],
+  title: 'Analyzer V25.0 - OpenRouter Edition',
+  description: 'AI-powered UX Research Analysis with AI',
+  keywords: ['UX Research', 'AI Analysis', 'User Experience', 'AI', 'OpenRouter'],
   authors: [{ name: 'UX Research Team' }],
-  creator: 'UX Analyzer',
+  creator: 'Analyzer',
   publisher: 'UX Research Team',
   formatDetection: {
     email: false,
     address: false,
     telephone: false,
   },
-  metadataBase: new URL('https://ux-analyzer.vercel.app'),
+  metadataBase: new URL('https://analyzer-v25.railway.app'),
   openGraph: {
-    title: 'UX Analyzer V25.0 - OpenRouter Edition',
-    description: 'AI-powered UX Research Analysis with Claude 3.5 Sonnet',
-    url: 'https://ux-analyzer.vercel.app',
-    siteName: 'UX Analyzer',
+    title: 'Analyzer V25.0 - OpenRouter Edition',
+    description: 'AI-powered UX Research Analysis with AI',
+    url: 'https://analyzer-v25.railway.app',
+    siteName: 'Analyzer',
     images: [
       {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'UX Analyzer V25.0',
+        alt: 'Analyzer V25.0',
       },
     ],
     locale: 'ru_RU',
@@ -35,8 +32,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'UX Analyzer V25.0 - OpenRouter Edition',
-    description: 'AI-powered UX Research Analysis with Claude 3.5 Sonnet',
+    title: 'Analyzer V25.0 - OpenRouter Edition',
+    description: 'AI-powered UX Research Analysis with AI',
     images: ['/og-image.png'],
   },
   robots: {
@@ -69,7 +66,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#030213" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
-      <body className={`${inter.className} h-full antialiased`}>
+      <body className="h-full antialiased font-sans">
         {children}
       </body>
     </html>
