@@ -93,12 +93,57 @@ const config = {
   analysis: {
     min_interviews_recommended: 8,
     use_speaker_splitting: true,
-    chunk_size: 1000, // Уменьшили для Railway
-    chunk_overlap: 100, // Уменьшили перекрытие
-    max_chunks_per_interview: 6, // Ограничиваем количество чанков
-    max_retries: 2 // Уменьшили количество попыток
+    chunk_size: 2000, // Увеличили для меньшего количества чанков
+    chunk_overlap: 200, // Увеличили перекрытие для качества
+    max_chunks_per_interview: 3, // Резко сократили количество чанков
+    max_concurrent_requests: 3, // Максимум 3 одновременных запроса
+    max_retries: 2
   }
 }
+
+// Очередь запросов для ограничения одновременных вызовов
+class RequestQueue {
+  private queue: Array<() => Promise<any>> = []
+  private running = 0
+  private maxConcurrent: number
+
+  constructor(maxConcurrent: number = 3) {
+    this.maxConcurrent = maxConcurrent
+  }
+
+  async add<T>(fn: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      this.queue.push(async () => {
+        try {
+          const result = await fn()
+          resolve(result)
+        } catch (error) {
+          reject(error)
+        }
+      })
+      this.process()
+    })
+  }
+
+  private async process() {
+    if (this.running >= this.maxConcurrent || this.queue.length === 0) {
+      return
+    }
+
+    this.running++
+    const fn = this.queue.shift()!
+    
+    try {
+      await fn()
+    } finally {
+      this.running--
+      this.process()
+    }
+  }
+}
+
+// Глобальная очередь для API запросов
+const apiQueue = new RequestQueue(config.analysis.max_concurrent_requests)
 
 // Функция для вызова OpenRouter API
 async function callOpenRouterAPI(prompt: string, model: string = 'anthropic/claude-3.5-sonnet', maxRetries = 3): Promise<string> {
@@ -108,14 +153,15 @@ async function callOpenRouterAPI(prompt: string, model: string = 'anthropic/clau
     throw new Error('OPENROUTER_API_KEY не найден в переменных окружения')
   }
   
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`🔄 Попытка ${attempt}/${maxRetries} вызова OpenRouter API...`)
-      
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 60000) // 1 минута таймаут для Railway
-      
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+  return apiQueue.add(async () => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🔄 Попытка ${attempt}/${maxRetries} вызова OpenRouter API...`)
+        
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 60000) // 1 минута таймаут для Railway
+        
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -167,6 +213,7 @@ async function callOpenRouterAPI(prompt: string, model: string = 'anthropic/clau
   }
   
   throw new Error('All API attempts failed')
+  })
 }
 
 // Извлечение JSON из ответа
@@ -251,7 +298,7 @@ function extractJSON(text: string): any {
 }
 
 // Создание чанков из транскрипта
-function createOverlappingChunks(text: string, chunkSize = 1500, overlap = 150): string[] {
+function createOverlappingChunks(text: string, chunkSize = 2000, overlap = 200): string[] {
   const chunks: string[] = []
   let start = 0
   
@@ -259,16 +306,26 @@ function createOverlappingChunks(text: string, chunkSize = 1500, overlap = 150):
     const end = Math.min(start + chunkSize, text.length)
     let chunk = text.slice(start, end)
     
-    // Пытаемся закончить на границе предложения
+    // Если это не последний чанк, улучшаем разбиение
     if (end < text.length) {
-      const lastSentenceEnd = chunk.lastIndexOf('.')
-      if (lastSentenceEnd > chunkSize * 0.7) {
-        chunk = chunk.slice(0, lastSentenceEnd + 1)
+      // Сначала пытаемся найти конец абзаца
+      const lastParagraphEnd = chunk.lastIndexOf('\n\n')
+      if (lastParagraphEnd > chunkSize * 0.6) {
+        chunk = chunk.slice(0, lastParagraphEnd)
+      } else {
+        // Если абзаца нет, ищем конец предложения
+        const lastSentenceEnd = chunk.lastIndexOf('.')
+        if (lastSentenceEnd > chunkSize * 0.7) {
+          chunk = chunk.slice(0, lastSentenceEnd + 1)
+        }
       }
     }
     
     chunks.push(chunk.trim())
     start = end - overlap
+    
+    // Защита от бесконечного цикла
+    if (start <= 0) break
   }
   
   return chunks
@@ -1381,8 +1438,12 @@ export async function POST(request: NextRequest) {
     })
     
     // Проверяем переменные окружения
-    console.log('🔑 Проверяем переменные окружения:')
-    console.log('   OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? '✅' : '❌')
+  console.log('🔑 Проверяем переменные окружения:')
+  console.log('   OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? '✅' : '❌')
+  
+  // Логирование использования памяти
+  const memUsage = process.memoryUsage()
+  console.log(`📊 Память: ${Math.round(memUsage.heapUsed / 1024 / 1024)}MB / ${Math.round(memUsage.heapTotal / 1024 / 1024)}MB`)
     
     transcripts.forEach((transcript: string, index: number) => {
       console.log(`  Интервью ${index + 1}: ${transcript.length} символов`)
