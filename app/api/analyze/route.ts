@@ -3,11 +3,16 @@ import { NextRequest, NextResponse } from 'next/server'
 // Увеличиваем максимальное время выполнения API route до 30 минут
 export const maxDuration = 1800
 
+// Keep-alive для длительных запросов
+export const runtime = 'nodejs'
+
 // CORS заголовки
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Connection': 'keep-alive',
+  'Keep-Alive': 'timeout=300, max=1000'
 }
 
 // Обработка OPTIONS запроса для CORS
