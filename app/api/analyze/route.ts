@@ -97,7 +97,7 @@ const config = {
 
 // Функция для вызова OpenRouter API
 async function callOpenRouterAPI(prompt: string, model: string = 'anthropic/claude-3.5-sonnet', maxRetries = 3): Promise<string> {
-  const apiKey = process.env.OPENROUTER_API_KEY || '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'
+  const apiKey = process.env.OPENROUTER_API_KEY
   
   if (!apiKey) {
     throw new Error('OPENROUTER_API_KEY не найден в переменных окружения')
