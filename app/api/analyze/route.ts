@@ -88,9 +88,9 @@ const config = {
   analysis: {
     min_interviews_recommended: 8,
     use_speaker_splitting: true,
-    chunk_size: 1500, // Уменьшили размер чанка
-    chunk_overlap: 150, // Уменьшили перекрытие
-    max_chunks_per_interview: 8, // Ограничиваем количество чанков
+    chunk_size: 1000, // Уменьшили для Railway
+    chunk_overlap: 100, // Уменьшили перекрытие
+    max_chunks_per_interview: 6, // Ограничиваем количество чанков
     max_retries: 2 // Уменьшили количество попыток
   }
 }
@@ -108,7 +108,7 @@ async function callOpenRouterAPI(prompt: string, model: string = 'anthropic/clau
       console.log(`🔄 Попытка ${attempt}/${maxRetries} вызова OpenRouter API...`)
       
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 300000) // 5 минут таймаут
+      const timeoutId = setTimeout(() => controller.abort(), 60000) // 1 минута таймаут для Railway
       
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',

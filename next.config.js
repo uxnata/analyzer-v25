@@ -7,6 +7,24 @@ const nextConfig = {
   experimental: {
     forceSwcTransforms: false,
   },
+  // Railway optimizations
+  env: {
+    RAILWAY_TIMEOUT: '60000',
+  },
+  // API route timeout configuration
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, max-age=0',
+          },
+        ],
+      },
+    ]
+  },
 }
 
 module.exports = nextConfig
