@@ -1022,10 +1022,10 @@ ${extractedHypotheses.length > 0 ? extractedHypotheses.map((h, i) => `${i + 1}. 
 
 ДАННЫЕ ИЗ ИНТЕРВЬЮ:
 ${JSON.stringify(summaries.map(s => ({
-  interview_id: s.interview_id,
-  key_insights: s.keyInsights,
+  interview_id: s.id,
+  key_insights: s.insights,
   pain_points: s.painPoints,
-  user_needs: s.userNeeds,
+  user_needs: s.needs,
   key_quotes: s.keyQuotes
 })), null, 2)}
 
