@@ -6,6 +6,15 @@ export const maxDuration = 1800
 // Keep-alive для длительных запросов
 export const runtime = 'nodejs'
 
+// Включаем сборку мусора для Railway
+if (process.env.NODE_ENV === 'production') {
+  try {
+    require('v8').setFlagsFromString('--expose-gc')
+  } catch (e) {
+    console.log('GC не доступен')
+  }
+}
+
 // CORS заголовки
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -93,11 +102,12 @@ const config = {
   analysis: {
     min_interviews_recommended: 8,
     use_speaker_splitting: true,
-    chunk_size: 2000, // Увеличили для меньшего количества чанков
-    chunk_overlap: 200, // Увеличили перекрытие для качества
-    max_chunks_per_interview: 3, // Резко сократили количество чанков
-    max_concurrent_requests: 3, // Максимум 3 одновременных запроса
-    max_retries: 2
+    chunk_size: 3000, // Еще больше увеличили размер чанков
+    chunk_overlap: 300, // Увеличили перекрытие для качества
+    max_chunks_per_interview: 2, // Максимум 2 чанка на интервью
+    max_concurrent_requests: 2, // Максимум 2 одновременных запроса
+    max_retries: 2,
+    max_transcripts: 6 // Ограничиваем максимальное количество транскриптов
   }
 }
 
@@ -1428,8 +1438,15 @@ export async function POST(request: NextRequest) {
     const { brief, transcripts, model = 'anthropic/claude-3.5-sonnet', analysisMode = 'full' } = await request.json()
     
     console.log(`📝 Бриф: ${brief.length} символов`)
-    console.log(`🎤 Транскрипты: ${transcripts.length} интервью`)
-    console.log(`🤖 Модель: ${model}`)
+  console.log(`🎤 Транскрипты: ${transcripts.length} интервью`)
+  console.log(`🤖 Модель: ${model}`)
+  
+  // Проверяем лимит транскриптов для Railway
+  if (transcripts.length > config.analysis.max_transcripts) {
+    console.log(`⚠️ Превышен лимит транскриптов: ${transcripts.length} > ${config.analysis.max_transcripts}`)
+    console.log(`📝 Ограничиваем до ${config.analysis.max_transcripts} транскриптов для стабильной работы`)
+    transcripts = transcripts.slice(0, config.analysis.max_transcripts)
+  }
     
     // Детальная информация о транскриптах
     transcripts.forEach((transcript: string, index: number) => {
@@ -1444,6 +1461,14 @@ export async function POST(request: NextRequest) {
   // Логирование использования памяти
   const memUsage = process.memoryUsage()
   console.log(`📊 Память: ${Math.round(memUsage.heapUsed / 1024 / 1024)}MB / ${Math.round(memUsage.heapTotal / 1024 / 1024)}MB`)
+  
+  // Принудительная сборка мусора если память критична
+  if (memUsage.heapUsed > 400 * 1024 * 1024) { // 400MB
+    console.log('🧹 Принудительная сборка мусора...')
+    if (global.gc) {
+      global.gc()
+    }
+  }
     
     transcripts.forEach((transcript: string, index: number) => {
       console.log(`  Интервью ${index + 1}: ${transcript.length} символов`)
@@ -1476,7 +1501,17 @@ export async function POST(request: NextRequest) {
       
       // Добавляем задержку между интервью для стабильности
       if (i < transcripts.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 200))
+        await new Promise(resolve => setTimeout(resolve, 500)) // Увеличили задержку
+      }
+      
+      // Мониторинг памяти после каждого интервью
+      const currentMemUsage = process.memoryUsage()
+      console.log(`📊 Память после интервью ${i + 1}: ${Math.round(currentMemUsage.heapUsed / 1024 / 1024)}MB`)
+      
+      // Принудительная сборка мусора каждые 2 интервью
+      if ((i + 1) % 2 === 0 && global.gc) {
+        console.log('🧹 Сборка мусора...')
+        global.gc()
       }
     }
 
