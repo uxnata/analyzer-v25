@@ -91,7 +91,7 @@ export function AnalysisRunner({ brief, transcripts, selectedModel, onComplete, 
           console.log(`🔄 Попытка ${attempt}/3 вызова API анализа...`)
           
           const controller = new AbortController()
-          const timeoutId = setTimeout(() => controller.abort(), 600000) // 10 минут таймаут для Railway
+          const timeoutId = setTimeout(() => controller.abort(), 900000) // 15 минут таймаут для Railway
           
           const apiUrl = typeof window !== 'undefined' && window.location.hostname.includes('railway') 
             ? 'https://analyzer-v25-production.up.railway.app/api/analyze'
@@ -125,7 +125,7 @@ export function AnalysisRunner({ brief, transcripts, selectedModel, onComplete, 
           console.error(`❌ Попытка ${attempt} не удалась:`, error?.message || 'Неизвестная ошибка')
           
           if (error.name === 'AbortError') {
-            console.log('⏰ Таймаут запроса (30 минут)')
+            console.log('⏰ Таймаут запроса (15 минут)')
           } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
             console.log('🌐 Сетевая ошибка, повторяем...')
           }
