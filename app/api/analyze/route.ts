@@ -1499,7 +1499,6 @@ export async function POST(request: NextRequest) {
     console.log('📋 Создание финального результата...')
     
     // Очистка промежуточных данных перед созданием результата
-    const needsList = interviewSummaries.flatMap(s => s.needs)
     const quotesList = interviewSummaries.flatMap(s => s.keyQuotes).filter(q => q && q.length > 0)
     
     const result: AnalysisResult = {
