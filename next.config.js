@@ -7,10 +7,11 @@ const nextConfig = {
   experimental: {
     forceSwcTransforms: false,
   },
-  // Railway optimizations
-  env: {
-    RAILWAY_TIMEOUT: '60000',
-  },
+         // Railway optimizations
+         env: {
+           RAILWAY_TIMEOUT: '120000',
+           NODE_OPTIONS: '--max-old-space-size=2048'
+         },
   // API route timeout configuration
   async headers() {
     return [

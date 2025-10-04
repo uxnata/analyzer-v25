@@ -88,18 +88,18 @@ interface InterviewSummary {
   briefRelatedFindings: any
 }
 
-// Конфигурация анализа
-const config = {
-  analysis: {
-    min_interviews_recommended: 8,
-    use_speaker_splitting: true,
-    chunk_size: 3000, // Большие чанки для меньшего количества
-    chunk_overlap: 300, // Перекрытие для качества
-    max_chunks_per_interview: 2, // Максимум 2 чанка на интервью
-    max_concurrent_requests: 2, // Максимум 2 одновременных запроса
-    max_retries: 2
+  // Конфигурация анализа
+  const config = {
+    analysis: {
+      min_interviews_recommended: 8,
+      use_speaker_splitting: true,
+      chunk_size: 4000, // Еще большие чанки для максимальной оптимизации
+      chunk_overlap: 400, // Перекрытие для качества
+      max_chunks_per_interview: 2, // Максимум 2 чанка на интервью
+      max_concurrent_requests: 2, // Максимум 2 одновременных запроса
+      max_retries: 2
+    }
   }
-}
 
 // Очередь запросов для ограничения одновременных вызовов
 class RequestQueue {
@@ -205,10 +205,10 @@ async function callOpenRouterAPI(prompt: string, model: string = 'anthropic/clau
         throw error
       }
       
-      // Увеличиваем задержку с каждой попыткой
-      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000) // Экспоненциальная задержка, максимум 10 сек
-      console.log(`⏳ Ожидание ${delay}ms перед повторной попыткой...`)
-      await new Promise(resolve => setTimeout(resolve, delay))
+               // Увеличиваем задержку с каждой попыткой
+               const delay = Math.min(2000 * Math.pow(2, attempt - 1), 15000) // Экспоненциальная задержка, максимум 15 сек
+               console.log(`⏳ Ожидание ${delay}ms перед повторной попыткой...`)
+               await new Promise(resolve => setTimeout(resolve, delay))
     }
   }
   
@@ -298,7 +298,7 @@ function extractJSON(text: string): any {
 }
 
 // Создание чанков из транскрипта
-function createOverlappingChunks(text: string, chunkSize = 2000, overlap = 200): string[] {
+function createOverlappingChunks(text: string, chunkSize = 4000, overlap = 400): string[] {
   const chunks: string[] = []
   let start = 0
   
@@ -1456,10 +1456,13 @@ export async function POST(request: NextRequest) {
       
       interviewSummaries.push(summary)
       
-      // Добавляем задержку между интервью для стабильности
-      if (i < transcripts.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 500))
-      }
+      // Очистка промежуточных данных для экономии памяти
+      summary = null as any
+      
+     // Добавляем задержку между интервью для стабильности
+     if (i < transcripts.length - 1) {
+       await new Promise(resolve => setTimeout(resolve, 1000))
+     }
       
       // Мониторинг памяти после каждого интервью
       const currentMemUsage = process.memoryUsage()
@@ -1469,27 +1472,30 @@ export async function POST(request: NextRequest) {
     // 2. Дедупликация болей (быстрая)
     console.log('🔄 Дедупликация болей...')
     const deduplicatedPains = deduplicatePains(interviewSummaries)
+    
+    // Очистка промежуточных данных
+    const needsList = interviewSummaries.flatMap(s => s.needs)
 
-    // 3. Быстрый кросс-анализ (оптимизированный)
-    const crossAnalysis = await quickCrossAnalysis(interviewSummaries.slice(0, 6), briefContext, model)
+    // 3. Быстрый кросс-анализ
+    const crossAnalysis = await quickCrossAnalysis(interviewSummaries, briefContext, model)
 
-    // 4. Упрощенная сегментация (оптимизированная)
+    // 4. Упрощенная сегментация
     console.log('👥 Упрощенная сегментация...')
-    const segments = await quickSegmentAudience(interviewSummaries.slice(0, 6), briefContext, model)
+    const segments = await quickSegmentAudience(interviewSummaries, briefContext, model)
 
     // 5. Быстрое создание персон
     console.log('👤 Быстрое создание персон...')
     const personas = await quickCreatePersonas(segments, briefContext, model)
 
-    // 6. Быстрая генерация рекомендаций (оптимизированная)
+    // 6. Быстрая генерация рекомендаций
     console.log('💡 Быстрая генерация рекомендаций...')
-    const recommendations = await quickGenerateRecommendations(deduplicatedPains.slice(0, 10), interviewSummaries.flatMap(s => s.needs).slice(0, 10), briefContext, model)
+    const recommendations = await quickGenerateRecommendations(deduplicatedPains, needsList, briefContext, model)
 
-    // 8. Расчет метрик (упрощенный)
+    // 8. Расчет метрик
     const metrics = {
       totalProblems: deduplicatedPains.length,
-      totalNeeds: interviewSummaries.flatMap(s => s.needs).length,
-      note: `Найдено ${deduplicatedPains.length} проблем и ${interviewSummaries.flatMap(s => s.needs).length} потребностей в ${transcripts.length} интервью.`
+      totalNeeds: needsList.length,
+      note: `Найдено ${deduplicatedPains.length} проблем и ${needsList.length} потребностей в ${transcripts.length} интервью.`
     }
 
     // 9. Создание финального результата
@@ -1497,8 +1503,8 @@ export async function POST(request: NextRequest) {
       overview: {
         totalInterviews: transcripts.length,
         totalProblems: deduplicatedPains.length,
-        totalNeeds: interviewSummaries.flatMap(s => s.needs).length,
-        summary: `Анализ ${transcripts.length} интервью выявил ${deduplicatedPains.length} основных проблем и ${interviewSummaries.flatMap(s => s.needs).length} потребностей пользователей.`,
+        totalNeeds: needsList.length,
+        summary: `Анализ ${transcripts.length} интервью выявил ${deduplicatedPains.length} основных проблем и ${needsList.length} потребностей пользователей.`,
         keyFindings: crossAnalysis.key_insights?.map((i: any) => i.insight) || [],
         methodology: 'Глубокий качественный анализ с использованием AI-анализа транскриптов, кросс-анализа паттернов и поведенческой сегментации.',
         goalAchievement: []
