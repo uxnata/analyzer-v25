@@ -11,8 +11,12 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Cache-Control': 'no-cache, no-store, must-revalidate',
+  'Pragma': 'no-cache',
+  'Expires': '0',
   'Connection': 'keep-alive',
-  'Keep-Alive': 'timeout=300, max=1000'
+  'Keep-Alive': 'timeout=300, max=1000',
+  'X-Content-Type-Options': 'nosniff'
 }
 
 // Обработка OPTIONS запроса для CORS
