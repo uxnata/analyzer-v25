@@ -1406,6 +1406,160 @@ ${truncatedTranscript}
 }
 
 // Основная функция анализа
+async function performFullAnalysis(brief: string, transcripts: string[], model: string, analysisMode: string) {
+  console.log('🔍 Начинаем полный анализ...')
+  
+  // Проверка количества интервью
+  if (transcripts.length < config.analysis.min_interviews_recommended) {
+    console.log(`⚠️  ВНИМАНИЕ: Рекомендуется минимум ${config.analysis.min_interviews_recommended} интервью!`)
+    console.log(`   У вас: ${transcripts.length} интервью`)
+  }
+
+  const briefContext = brief ? `КОНТЕКСТ БРИФА:\n${brief}\n\n` : ''
+
+  // 1. Анализ каждого интервью (выбираем режим)
+  console.log(`🧠 Начинаю ${analysisMode === 'quick' ? 'быстрый' : 'глубокий'} анализ...`)
+  const interviewSummaries: InterviewSummary[] = []
+  
+  for (let i = 0; i < transcripts.length; i++) {
+    let summary: InterviewSummary
+    
+    if (analysisMode === 'quick') {
+      // Быстрый анализ - один запрос на интервью
+      summary = await quickAnalyzeInterview(transcripts[i], i + 1, briefContext, model)
+    } else {
+      // Полный анализ - детальная обработка
+      summary = await deepAnalyzeInterview(transcripts[i], i + 1, briefContext, model)
+    }
+    
+    interviewSummaries.push(summary)
+    
+    // Очистка промежуточных данных для экономии памяти
+    summary = null as any
+    
+   // Добавляем задержку между интервью для стабильности
+   if (i < transcripts.length - 1) {
+     await new Promise(resolve => setTimeout(resolve, 1000))
+   }
+    
+    // Мониторинг памяти после каждого интервью
+    const currentMemUsage = process.memoryUsage()
+    console.log(`📊 Память после интервью ${i + 1}: ${Math.round(currentMemUsage.heapUsed / 1024 / 1024)}MB`)
+  }
+
+  // 2. Дедупликация болей (быстрая)
+  console.log('🔄 Дедупликация болей...')
+  const deduplicatedPains = deduplicatePains(interviewSummaries)
+  
+  // Очистка промежуточных данных
+  const needsList = interviewSummaries.flatMap(s => s.needs)
+
+  // 3. Быстрый кросс-анализ
+  const crossAnalysis = await quickCrossAnalysis(interviewSummaries, briefContext, model)
+
+  // 4. Упрощенная сегментация
+  console.log('👥 Упрощенная сегментация...')
+  const segments = await quickSegmentAudience(interviewSummaries, briefContext, model)
+
+  // 5. Быстрое создание персон
+  console.log('👤 Быстрое создание персон...')
+  const personas = await quickCreatePersonas(segments, briefContext, model)
+
+  // 6. Быстрая генерация рекомендаций
+  console.log('💡 Быстрая генерация рекомендаций...')
+  const recommendations = await quickGenerateRecommendations(deduplicatedPains, needsList, briefContext, model)
+
+  // 8. Расчет метрик
+  const metrics = {
+    totalProblems: deduplicatedPains.length,
+    totalNeeds: needsList.length,
+    note: `Найдено ${deduplicatedPains.length} проблем и ${needsList.length} потребностей в ${transcripts.length} интервью.`
+  }
+
+  // 9. Создание финального результата (оптимизированное)
+  console.log('📋 Создание финального результата...')
+  
+  // Очистка промежуточных данных перед созданием результата
+  const quotesList = interviewSummaries.flatMap(s => s.keyQuotes).filter(q => q && q.length > 0)
+  
+  const result: AnalysisResult = {
+    overview: {
+      totalInterviews: transcripts.length,
+      totalProblems: deduplicatedPains.length,
+      totalNeeds: needsList.length,
+      summary: `Анализ ${transcripts.length} интервью выявил ${deduplicatedPains.length} основных проблем и ${needsList.length} потребностей пользователей.`,
+      keyFindings: crossAnalysis.key_insights?.map((i: any) => i.insight) || [],
+      methodology: 'Глубокий качественный анализ с использованием AI-анализа транскриптов, кросс-анализа паттернов и поведенческой сегментации.',
+      goalAchievement: []
+    },
+    insights: {
+      painPoints: deduplicatedPains,
+      userNeeds: interviewSummaries.flatMap(s => s.needs),
+      opportunities: recommendations.longTerm || [],
+      behavioralPatterns: [],
+      detailedInsights: crossAnalysis.key_insights || []
+    },
+    personas: {
+      primary: personas.primary || {
+        name: 'Основной пользователь',
+        description: 'Основной сегмент пользователей',
+        goals: ['Достижение целей'],
+        frustrations: ['Основные проблемы'],
+        motivations: ['Ключевые мотивации']
+      },
+      secondary: personas.secondary || {
+        name: 'Вторичный пользователь',
+        description: 'Вторичный сегмент пользователей',
+        goals: ['Достижение целей'],
+        frustrations: ['Основные проблемы'],
+        motivations: ['Ключевые мотивации']
+      },
+      segments: segments
+    },
+    recommendations: {
+      immediate: recommendations.immediate || [],
+      shortTerm: recommendations.shortTerm || [],
+      longTerm: recommendations.longTerm || [],
+      detailedRecommendations: recommendations.detailedRecommendations || [],
+      roiCalculation: `На основе ${transcripts.length} интервью: прогнозируемый ROI 150% при решении ${deduplicatedPains.length} ключевых проблем`,
+      nextSteps: [],
+      riskMitigation: []
+    },
+    metrics: metrics,
+    interviewSummaries: interviewSummaries,
+    powerfulQuotes: quotesList,
+    briefQuestions: await generateBriefQuestions(interviewSummaries, briefContext, model),
+    keyInsights: crossAnalysis.key_insights || [],
+    crossQuestionInsights: crossAnalysis.contradictions || [],
+    unexpectedFindings: [],
+    successMetrics: [
+      'Увеличение удовлетворенности пользователей',
+      'Снижение количества жалоб',
+      'Повышение конверсии',
+      'Улучшение NPS'
+    ]
+  }
+
+  console.log('✅ Анализ завершен:')
+  console.log(`  📊 Найдено: ${result.overview.totalProblems} проблем, ${result.overview.totalNeeds} потребностей`)
+  console.log(`  👥 Персонажи: ${result.personas.primary.name}, ${result.personas.secondary.name}`)
+  
+  // Финальная проверка памяти
+  const finalMemUsage = process.memoryUsage()
+  console.log(`📊 Финальная память: ${Math.round(finalMemUsage.heapUsed / 1024 / 1024)}MB`)
+  
+  // Очистка переменных перед возвратом
+  console.log('🧹 Очистка промежуточных данных...')
+  
+  // Простая очистка без принудительной сборки мусора
+  console.log('✅ Результат готов к отправке')
+  
+  // Проверка размера результата
+  const resultSize = JSON.stringify(result).length
+  console.log(`📏 Размер результата: ${Math.round(resultSize / 1024)}KB`)
+  
+  return result
+}
 
 // Асинхронная обработка анализа
 async function processAnalysisAsync(requestId: string, brief: string, transcripts: string[], model: string, analysisMode: string) {
@@ -1432,12 +1586,28 @@ async function processAnalysisAsync(requestId: string, brief: string, transcript
       })
     }
     
+    // Выполняем реальный анализ
+    console.log(`📊 Выполняем полный анализ для ${transcripts.length} интервью...`)
+    
+    // Получаем сохраненные данные
+    const analysisData = activeAnalyses.get(requestId)
+    
+    // Выполняем полный анализ (копируем логику из синхронной версии)
+    const result = await performFullAnalysis(
+      analysisData.brief,
+      analysisData.transcripts,
+      analysisData.model,
+      analysisData.analysisMode
+    )
+    
+    console.log(`✅ Анализ завершен, результат: ${JSON.stringify(result).length} символов`)
+    
     // Завершаем анализ
     setAnalysisStatus(requestId, {
       ...activeAnalyses.get(requestId),
       progress: 100,
       status: 'completed',
-      result: { message: 'Анализ завершен' }
+      result: result
     })
     
     console.log(`✅ Асинхронный анализ ${requestId} завершен`)
@@ -1490,172 +1660,9 @@ export async function POST(request: NextRequest) {
       }, { headers: corsHeaders })
     }
     
-    // Детальная информация о транскриптах
-    transcripts.forEach((transcript: string, index: number) => {
-      console.log(`  Транскрипт ${index + 1}: ${transcript.length} символов`)
-      console.log(`  Начало: ${transcript.substring(0, 100)}...`)
-    })
-    
-    // Проверяем переменные окружения
-  console.log('🔑 Проверяем переменные окружения:')
-  console.log('   OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? '✅' : '❌')
-  
-  // Логирование использования памяти
-  const memUsage = process.memoryUsage()
-  console.log(`📊 Память: ${Math.round(memUsage.heapUsed / 1024 / 1024)}MB / ${Math.round(memUsage.heapTotal / 1024 / 1024)}MB`)
-    
-    transcripts.forEach((transcript: string, index: number) => {
-      console.log(`  Интервью ${index + 1}: ${transcript.length} символов`)
-    })
-
-    // Проверка количества интервью
-    if (transcripts.length < config.analysis.min_interviews_recommended) {
-      console.log(`⚠️  ВНИМАНИЕ: Рекомендуется минимум ${config.analysis.min_interviews_recommended} интервью!`)
-      console.log(`   У вас: ${transcripts.length} интервью`)
-    }
-
-    const briefContext = brief ? `КОНТЕКСТ БРИФА:\n${brief}\n\n` : ''
-
-    // 1. Анализ каждого интервью (выбираем режим)
-    console.log(`🧠 Начинаю ${analysisMode === 'quick' ? 'быстрый' : 'глубокий'} анализ...`)
-    const interviewSummaries: InterviewSummary[] = []
-    
-    for (let i = 0; i < transcripts.length; i++) {
-      let summary: InterviewSummary
-      
-      if (analysisMode === 'quick') {
-        // Быстрый анализ - один запрос на интервью
-        summary = await quickAnalyzeInterview(transcripts[i], i + 1, briefContext, model)
-      } else {
-        // Полный анализ - детальная обработка
-        summary = await deepAnalyzeInterview(transcripts[i], i + 1, briefContext, model)
-      }
-      
-      interviewSummaries.push(summary)
-      
-      // Очистка промежуточных данных для экономии памяти
-      summary = null as any
-      
-     // Добавляем задержку между интервью для стабильности
-     if (i < transcripts.length - 1) {
-       await new Promise(resolve => setTimeout(resolve, 1000))
-     }
-      
-      // Мониторинг памяти после каждого интервью
-      const currentMemUsage = process.memoryUsage()
-      console.log(`📊 Память после интервью ${i + 1}: ${Math.round(currentMemUsage.heapUsed / 1024 / 1024)}MB`)
-    }
-
-    // 2. Дедупликация болей (быстрая)
-    console.log('🔄 Дедупликация болей...')
-    const deduplicatedPains = deduplicatePains(interviewSummaries)
-    
-    // Очистка промежуточных данных
-    const needsList = interviewSummaries.flatMap(s => s.needs)
-
-    // 3. Быстрый кросс-анализ
-    const crossAnalysis = await quickCrossAnalysis(interviewSummaries, briefContext, model)
-
-    // 4. Упрощенная сегментация
-    console.log('👥 Упрощенная сегментация...')
-    const segments = await quickSegmentAudience(interviewSummaries, briefContext, model)
-
-    // 5. Быстрое создание персон
-    console.log('👤 Быстрое создание персон...')
-    const personas = await quickCreatePersonas(segments, briefContext, model)
-
-    // 6. Быстрая генерация рекомендаций
-    console.log('💡 Быстрая генерация рекомендаций...')
-    const recommendations = await quickGenerateRecommendations(deduplicatedPains, needsList, briefContext, model)
-
-    // 8. Расчет метрик
-    const metrics = {
-      totalProblems: deduplicatedPains.length,
-      totalNeeds: needsList.length,
-      note: `Найдено ${deduplicatedPains.length} проблем и ${needsList.length} потребностей в ${transcripts.length} интервью.`
-    }
-
-    // 9. Создание финального результата (оптимизированное)
-    console.log('📋 Создание финального результата...')
-    
-    // Очистка промежуточных данных перед созданием результата
-    const quotesList = interviewSummaries.flatMap(s => s.keyQuotes).filter(q => q && q.length > 0)
-    
-    const result: AnalysisResult = {
-      overview: {
-        totalInterviews: transcripts.length,
-        totalProblems: deduplicatedPains.length,
-        totalNeeds: needsList.length,
-        summary: `Анализ ${transcripts.length} интервью выявил ${deduplicatedPains.length} основных проблем и ${needsList.length} потребностей пользователей.`,
-        keyFindings: crossAnalysis.key_insights?.map((i: any) => i.insight) || [],
-        methodology: 'Глубокий качественный анализ с использованием AI-анализа транскриптов, кросс-анализа паттернов и поведенческой сегментации.',
-        goalAchievement: []
-      },
-      insights: {
-        painPoints: deduplicatedPains,
-        userNeeds: interviewSummaries.flatMap(s => s.needs),
-        opportunities: recommendations.longTerm || [],
-        behavioralPatterns: [],
-        detailedInsights: crossAnalysis.key_insights || []
-      },
-      personas: {
-        primary: personas.primary || {
-          name: 'Основной пользователь',
-          description: 'Основной сегмент пользователей',
-          goals: ['Достижение целей'],
-          frustrations: ['Основные проблемы'],
-          motivations: ['Ключевые мотивации']
-        },
-        secondary: personas.secondary || {
-          name: 'Вторичный пользователь',
-          description: 'Вторичный сегмент пользователей',
-          goals: ['Достижение целей'],
-          frustrations: ['Основные проблемы'],
-          motivations: ['Ключевые мотивации']
-        },
-        segments: segments
-      },
-      recommendations: {
-        immediate: recommendations.immediate || [],
-        shortTerm: recommendations.shortTerm || [],
-        longTerm: recommendations.longTerm || [],
-        detailedRecommendations: recommendations.detailedRecommendations || [],
-        roiCalculation: `На основе ${transcripts.length} интервью: прогнозируемый ROI 150% при решении ${deduplicatedPains.length} ключевых проблем`,
-        nextSteps: [],
-        riskMitigation: []
-      },
-      metrics: metrics,
-      interviewSummaries: interviewSummaries,
-      powerfulQuotes: quotesList,
-      briefQuestions: await generateBriefQuestions(interviewSummaries, briefContext, model),
-      keyInsights: crossAnalysis.key_insights || [],
-      crossQuestionInsights: crossAnalysis.contradictions || [],
-      unexpectedFindings: [],
-      successMetrics: [
-        'Увеличение удовлетворенности пользователей',
-        'Снижение количества жалоб',
-        'Повышение конверсии',
-        'Улучшение NPS'
-      ]
-    }
-
-    console.log('✅ Анализ завершен:')
-    console.log(`  📊 Найдено: ${result.overview.totalProblems} проблем, ${result.overview.totalNeeds} потребностей`)
-    console.log(`  👥 Персонажи: ${result.personas.primary.name}, ${result.personas.secondary.name}`)
-    
-    // Финальная проверка памяти
-    const finalMemUsage = process.memoryUsage()
-    console.log(`📊 Финальная память: ${Math.round(finalMemUsage.heapUsed / 1024 / 1024)}MB`)
-    
-    // Очистка переменных перед возвратом
-    console.log('🧹 Очистка промежуточных данных...')
-    
-    // Простая очистка без принудительной сборки мусора
-    console.log('✅ Результат готов к отправке')
-    
-    // Проверка размера результата
-    const resultSize = JSON.stringify(result).length
-    console.log(`📏 Размер результата: ${Math.round(resultSize / 1024)}KB`)
+    // Выполняем полный анализ синхронно
+    console.log('📊 Синхронный анализ...')
+    const result = await performFullAnalysis(brief, transcripts, model, analysisMode)
     
     // Отправка результата
     console.log('📤 Отправка результата фронтенду...')
