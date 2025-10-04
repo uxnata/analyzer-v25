@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { activeAnalyses, setAnalysisStatus } from '../../../lib/analysis-store'
 
 // Увеличиваем максимальное время выполнения API route до 30 минут
 export const maxDuration = 1800
@@ -1405,7 +1406,6 @@ ${truncatedTranscript}
 }
 
 // Основная функция анализа
-import { activeAnalyses, setAnalysisStatus } from '../../lib/analysis-store'
 
 // Асинхронная обработка анализа
 async function processAnalysisAsync(requestId: string, brief: string, transcripts: string[], model: string, analysisMode: string) {

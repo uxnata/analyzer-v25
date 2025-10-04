@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAnalysisStatus } from '../../../lib/analysis-store'
+import { getAnalysisStatus } from '../../../../lib/analysis-store'
 
 export async function GET(request: NextRequest) {
   try {
