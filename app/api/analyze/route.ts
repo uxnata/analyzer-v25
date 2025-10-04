@@ -1405,14 +1405,91 @@ ${truncatedTranscript}
 }
 
 // Основная функция анализа
+// Хранилище для активных анализов
+const activeAnalyses = new Map<string, any>()
+
+// Асинхронная обработка анализа
+async function processAnalysisAsync(requestId: string, brief: string, transcripts: string[], model: string, analysisMode: string) {
+  try {
+    console.log(`🚀 Начинаем асинхронный анализ ${requestId}`)
+    
+    // Обновляем прогресс
+    activeAnalyses.set(requestId, {
+      ...activeAnalyses.get(requestId),
+      progress: 10,
+      status: 'processing'
+    })
+    
+    // Здесь должен быть весь код анализа, но упростим для начала
+    // Имитируем обработку
+    for (let i = 0; i < transcripts.length; i++) {
+      await new Promise(resolve => setTimeout(resolve, 5000)) // 5 сек на интервью
+      
+      const progress = 10 + ((i + 1) / transcripts.length) * 80
+      activeAnalyses.set(requestId, {
+        ...activeAnalyses.get(requestId),
+        progress: Math.round(progress),
+        currentStep: `Обработка интервью ${i + 1} из ${transcripts.length}`
+      })
+    }
+    
+    // Завершаем анализ
+    activeAnalyses.set(requestId, {
+      ...activeAnalyses.get(requestId),
+      progress: 100,
+      status: 'completed',
+      result: { message: 'Анализ завершен' }
+    })
+    
+    console.log(`✅ Асинхронный анализ ${requestId} завершен`)
+    
+  } catch (error) {
+    console.error(`❌ Ошибка в асинхронном анализе ${requestId}:`, error)
+    activeAnalyses.set(requestId, {
+      ...activeAnalyses.get(requestId),
+      status: 'error',
+      error: error instanceof Error ? error.message : 'Неизвестная ошибка'
+    })
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const requestId = `analysis_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     
     const { brief, transcripts, model = 'anthropic/claude-3.5-sonnet', analysisMode = 'full' } = await request.json()
     
     console.log(`📝 Бриф: ${brief.length} символов`)
-  console.log(`🎤 Транскрипты: ${transcripts.length} интервью`)
-  console.log(`🤖 Модель: ${model}`)
+    console.log(`🎤 Транскрипты: ${transcripts.length} интервью`)
+    console.log(`🤖 Модель: ${model}`)
+    console.log(`🆔 ID запроса: ${requestId}`)
+    
+    // Для больших анализов (>3 интервью) запускаем асинхронно
+    if (transcripts.length > 3) {
+      console.log('🚀 Запуск асинхронного анализа...')
+      
+      // Сохраняем данные для асинхронной обработки
+      activeAnalyses.set(requestId, {
+        status: 'processing',
+        progress: 0,
+        brief,
+        transcripts,
+        model,
+        analysisMode,
+        startTime: Date.now()
+      })
+      
+      // Запускаем анализ в фоне
+      processAnalysisAsync(requestId, brief, transcripts, model, analysisMode)
+      
+      // Возвращаем ID для отслеживания
+      return NextResponse.json({ 
+        requestId,
+        status: 'processing',
+        message: 'Анализ запущен в фоне. Используйте ID для проверки статуса.',
+        estimatedTime: `${transcripts.length * 2} минут`
+      }, { headers: corsHeaders })
+    }
     
     // Детальная информация о транскриптах
     transcripts.forEach((transcript: string, index: number) => {

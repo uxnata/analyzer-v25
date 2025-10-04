@@ -91,14 +91,16 @@ export function AnalysisRunner({ brief, transcripts, selectedModel, onComplete, 
           console.log(`🔄 Попытка ${attempt}/3 вызова API анализа...`)
           
           const controller = new AbortController()
+          const startTime = Date.now()
           const timeoutId = setTimeout(() => {
-            console.log('⏰ Таймаут 15 минут истек, прерываем запрос')
+            console.log('⏰ Таймаут 20 минут истек, прерываем запрос')
             controller.abort()
-          }, 900000) // 15 минут таймаут для Railway
+          }, 1200000) // 20 минут таймаут для Railway
           
           // Логируем каждые 30 секунд, что запрос еще идет
           const progressInterval = setInterval(() => {
-            console.log(`⏳ Запрос выполняется уже ${Math.round((Date.now() - Date.now()) / 1000)} секунд...`)
+            const elapsed = Math.round((Date.now() - startTime) / 1000)
+            console.log(`⏳ Запрос выполняется уже ${elapsed} секунд...`)
           }, 30000)
           
           const apiUrl = typeof window !== 'undefined' && window.location.hostname.includes('railway') 
@@ -139,7 +141,7 @@ export function AnalysisRunner({ brief, transcripts, selectedModel, onComplete, 
           console.error(`❌ Попытка ${attempt} не удалась:`, error?.message || 'Неизвестная ошибка')
           
           if (error.name === 'AbortError') {
-            console.log('⏰ Таймаут запроса (15 минут)')
+            console.log('⏰ Таймаут запроса (20 минут)')
           } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
             console.log('🌐 Сетевая ошибка, повторяем...')
           }
