@@ -1028,8 +1028,8 @@ export function ReportGenerator({ result, onBack }: ReportGeneratorProps) {
                     <div class="footer-stat-label">Потребностей</div>
                 </div>
                 <div class="footer-stat">
-                    <div class="footer-stat-number">${data.metrics?.satisfaction || 0}%</div>
-                    <div class="footer-stat-label">Удовлетворенность</div>
+                    <div class="footer-stat-number">${data.overview?.totalProblems || 0}</div>
+                    <div class="footer-stat-label">Проблем</div>
                 </div>
             </div>
         </div>
@@ -1089,12 +1089,9 @@ export function ReportGenerator({ result, onBack }: ReportGeneratorProps) {
     // Метрики
     if (data.metrics) {
       addText('МЕТРИКИ', 16, true)
-      addText(`Удовлетворенность: ${data.metrics.satisfaction || 0}%`, 12)
-      addText(`Удобство использования: ${data.metrics.usability || 0}%`, 12)
-      addText(`Вовлеченность: ${data.metrics.engagement || 0}%`, 12)
-      addText(`Конверсия: ${data.metrics.conversion || 0}%`, 12)
-      addText(`NPS: ${data.metrics.nps || 0}`, 12)
-      addText(`Удержание: ${data.metrics.retention || 0}%`, 12)
+      addText(`Проблем найдено: ${data.metrics.totalProblems}`, 12)
+      addText(`Потребностей выявлено: ${data.metrics.totalNeeds}`, 12)
+      addText(data.metrics.note, 12)
       yPosition += 10
     }
 

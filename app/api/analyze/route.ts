@@ -55,12 +55,9 @@ interface AnalysisResult {
     riskMitigation?: any[]
   }
   metrics: {
-    satisfaction: number
-    usability: number
-    engagement: number
-    conversion: number
-    nps: number
-    retention: number
+    totalProblems: number
+    totalNeeds: number
+    note: string
   }
   interviewSummaries: any[]
   powerfulQuotes: string[]
