@@ -80,8 +80,12 @@ export default function Home() {
   }
 
   const handleAnalysisComplete = async (result: any) => {
+    console.log('🎯 handleAnalysisComplete вызван с результатом:', result)
+    console.log('📊 Размер результата:', JSON.stringify(result).length, 'символов')
     setAnalysisResult(result)
+    console.log('📝 Анализ результат установлен, переходим к результатам...')
     setCurrentStep('results')
+    console.log('✅ Переход к результатам завершен')
   }
 
   const handleBackToAnalysis = () => {
