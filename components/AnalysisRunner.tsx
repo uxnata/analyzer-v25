@@ -91,9 +91,13 @@ export function AnalysisRunner({ brief, transcripts, selectedModel, onComplete, 
           console.log(`🔄 Попытка ${attempt}/3 вызова API анализа...`)
           
           const controller = new AbortController()
-          const timeoutId = setTimeout(() => controller.abort(), 1800000) // 30 минут таймаут
+          const timeoutId = setTimeout(() => controller.abort(), 600000) // 10 минут таймаут для Railway
           
-          response = await fetch('/api/analyze', {
+          const apiUrl = typeof window !== 'undefined' && window.location.hostname.includes('railway') 
+            ? 'https://analyzer-v25-production.up.railway.app/api/analyze'
+            : '/api/analyze'
+          
+          response = await fetch(apiUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
