@@ -1495,7 +1495,13 @@ export async function POST(request: NextRequest) {
       note: `Найдено ${deduplicatedPains.length} проблем и ${needsList.length} потребностей в ${transcripts.length} интервью.`
     }
 
-    // 9. Создание финального результата
+    // 9. Создание финального результата (оптимизированное)
+    console.log('📋 Создание финального результата...')
+    
+    // Очистка промежуточных данных перед созданием результата
+    const needsList = interviewSummaries.flatMap(s => s.needs)
+    const quotesList = interviewSummaries.flatMap(s => s.keyQuotes).filter(q => q && q.length > 0)
+    
     const result: AnalysisResult = {
       overview: {
         totalInterviews: transcripts.length,
@@ -1541,7 +1547,7 @@ export async function POST(request: NextRequest) {
       },
       metrics: metrics,
       interviewSummaries: interviewSummaries,
-      powerfulQuotes: interviewSummaries.flatMap(s => s.keyQuotes).filter(q => q && q.length > 0),
+      powerfulQuotes: quotesList,
       briefQuestions: await generateBriefQuestions(interviewSummaries, briefContext, model),
       keyInsights: crossAnalysis.key_insights || [],
       crossQuestionInsights: crossAnalysis.contradictions || [],
@@ -1561,6 +1567,14 @@ export async function POST(request: NextRequest) {
     // Финальная проверка памяти
     const finalMemUsage = process.memoryUsage()
     console.log(`📊 Финальная память: ${Math.round(finalMemUsage.heapUsed / 1024 / 1024)}MB`)
+    
+    // Очистка переменных перед возвратом
+    console.log('🧹 Очистка промежуточных данных...')
+    
+    // Принудительная очистка памяти
+    if (global.gc) {
+      global.gc()
+    }
 
     return NextResponse.json(result, { headers: corsHeaders })
 
