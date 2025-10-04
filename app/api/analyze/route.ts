@@ -1320,24 +1320,6 @@ async function quickGenerateRecommendations(painPoints: any[], needs: any[], bri
   }
 }
 
-// Расчет метрик
-function calculateMetrics(summaries: InterviewSummary[], painPoints: any[], needs: any[]): any {
-  
-  const totalIssues = painPoints.length
-  const totalNeeds = needs.length
-  const totalInterviews = summaries.length
-  
-  // Честно говорим - метрики требуют количественных данных
-  return {
-    satisfaction: 'Требует количественных данных',
-    usability: 'Требует количественных данных', 
-    engagement: 'Требует количественных данных',
-    conversion: 'Требует количественных данных',
-    nps: 'Требует количественных данных',
-    retention: 'Требует количественных данных',
-    note: `Найдено ${totalIssues} проблем и ${totalNeeds} потребностей в ${totalInterviews} интервью. Метрики требуют количественных исследований (опросы, A/B тесты, аналитика).`
-  }
-}
 
 // Быстрый анализ - один запрос на интервью
 async function quickAnalyzeInterview(transcript: string, interviewNum: number, briefContext: string, model: string): Promise<InterviewSummary> {
@@ -1488,23 +1470,27 @@ export async function POST(request: NextRequest) {
     console.log('🔄 Дедупликация болей...')
     const deduplicatedPains = deduplicatePains(interviewSummaries)
 
-    // 3. Быстрый кросс-анализ (упрощенный)
-    const crossAnalysis = await quickCrossAnalysis(interviewSummaries, briefContext, model)
+    // 3. Быстрый кросс-анализ (оптимизированный)
+    const crossAnalysis = await quickCrossAnalysis(interviewSummaries.slice(0, 6), briefContext, model)
 
-    // 4. Упрощенная сегментация
+    // 4. Упрощенная сегментация (оптимизированная)
     console.log('👥 Упрощенная сегментация...')
-    const segments = await quickSegmentAudience(interviewSummaries, briefContext, model)
+    const segments = await quickSegmentAudience(interviewSummaries.slice(0, 6), briefContext, model)
 
     // 5. Быстрое создание персон
     console.log('👤 Быстрое создание персон...')
     const personas = await quickCreatePersonas(segments, briefContext, model)
 
-    // 6. Быстрая генерация рекомендаций
+    // 6. Быстрая генерация рекомендаций (оптимизированная)
     console.log('💡 Быстрая генерация рекомендаций...')
-    const recommendations = await quickGenerateRecommendations(deduplicatedPains, interviewSummaries.flatMap(s => s.needs), briefContext, model)
+    const recommendations = await quickGenerateRecommendations(deduplicatedPains.slice(0, 10), interviewSummaries.flatMap(s => s.needs).slice(0, 10), briefContext, model)
 
-    // 8. Расчет метрик
-    const metrics = calculateMetrics(interviewSummaries, deduplicatedPains, interviewSummaries.flatMap(s => s.needs))
+    // 8. Расчет метрик (упрощенный)
+    const metrics = {
+      totalProblems: deduplicatedPains.length,
+      totalNeeds: interviewSummaries.flatMap(s => s.needs).length,
+      note: `Найдено ${deduplicatedPains.length} проблем и ${interviewSummaries.flatMap(s => s.needs).length} потребностей в ${transcripts.length} интервью.`
+    }
 
     // 9. Создание финального результата
     const result: AnalysisResult = {
@@ -1566,9 +1552,12 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('✅ Анализ завершен:')
-    console.log(`  🎯 Потребности: ${result.overview.totalNeeds}`)
-    console.log(`  📈 Метрики: ${JSON.stringify(result.metrics)}`)
+    console.log(`  📊 Найдено: ${result.overview.totalProblems} проблем, ${result.overview.totalNeeds} потребностей`)
     console.log(`  👥 Персонажи: ${result.personas.primary.name}, ${result.personas.secondary.name}`)
+    
+    // Финальная проверка памяти
+    const finalMemUsage = process.memoryUsage()
+    console.log(`📊 Финальная память: ${Math.round(finalMemUsage.heapUsed / 1024 / 1024)}MB`)
 
     return NextResponse.json(result, { headers: corsHeaders })
 
