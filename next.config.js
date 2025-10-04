@@ -10,7 +10,6 @@ const nextConfig = {
          // Railway optimizations
          env: {
            RAILWAY_TIMEOUT: '120000',
-           NODE_OPTIONS: '--max-old-space-size=2048'
          },
   // API route timeout configuration
   async headers() {
