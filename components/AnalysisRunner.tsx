@@ -113,10 +113,14 @@ export function AnalysisRunner({ brief, transcripts, selectedModel, onComplete, 
           
           clearTimeout(timeoutId)
           
+          console.log(`📊 Получен ответ: ${response.status} ${response.statusText}`)
+          console.log(`📋 Заголовки ответа:`, Object.fromEntries(response.headers.entries()))
+          
           if (!response.ok) {
             throw new Error(`Ошибка анализа: ${response.status}`)
           }
           
+          console.log('✅ Ответ успешен, выходим из цикла попыток')
           // Если успешно, выходим из цикла
           break
           
@@ -145,7 +149,9 @@ export function AnalysisRunner({ brief, transcripts, selectedModel, onComplete, 
         throw new Error('Не удалось получить ответ от API после всех попыток')
       }
 
+      console.log('📦 Начинаем парсинг JSON ответа...')
       const result = await response.json()
+      console.log('✅ JSON успешно распарсен, размер:', JSON.stringify(result).length, 'символов')
       
       // Добавляем информацию о входных данных
       result.inputData = {
@@ -156,7 +162,9 @@ export function AnalysisRunner({ brief, transcripts, selectedModel, onComplete, 
       }
 
       // Вызываем callback с результатом
+      console.log('🎯 Передаем результат в callback...')
       onComplete(result)
+      console.log('✅ Анализ полностью завершен!')
       
       // Переходим к следующему шагу
       onNext()
