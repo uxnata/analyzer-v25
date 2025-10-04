@@ -12,6 +12,61 @@ interface AnalysisRunnerProps {
   onBack: () => void
 }
 
+// Функция отслеживания асинхронного анализа
+async function trackAsyncAnalysis(requestId: string, onComplete: (result: any) => void) {
+  console.log('🔄 Начинаем отслеживание асинхронного анализа...')
+  
+  const checkStatus = async () => {
+    try {
+      const apiUrl = typeof window !== 'undefined' && window.location.hostname.includes('railway') 
+        ? 'https://analyzer-v25-production.up.railway.app/api/analyze/status'
+        : '/api/analyze/status'
+      
+      const response = await fetch(`${apiUrl}?requestId=${requestId}`)
+      
+      if (!response.ok) {
+        throw new Error(`Status check failed: ${response.status}`)
+      }
+      
+      const status = await response.json()
+      console.log('📊 Статус анализа:', status.status, 'Прогресс:', status.progress + '%')
+      
+      if (status.status === 'completed') {
+        console.log('✅ Асинхронный анализ завершен!')
+        onComplete(status.result)
+        return true
+      } else if (status.status === 'error') {
+        console.error('❌ Ошибка в асинхронном анализе:', status.error)
+        throw new Error(status.error)
+      }
+      
+      return false
+    } catch (error) {
+      console.error('❌ Ошибка проверки статуса:', error)
+      throw error
+    }
+  }
+  
+  // Проверяем статус каждые 5 секунд
+  const interval = setInterval(async () => {
+    try {
+      const isCompleted = await checkStatus()
+      if (isCompleted) {
+        clearInterval(interval)
+      }
+    } catch (error) {
+      clearInterval(interval)
+      throw error
+    }
+  }, 5000)
+  
+  // Таймаут через 30 минут
+  setTimeout(() => {
+    clearInterval(interval)
+    throw new Error('Асинхронный анализ превысил таймаут 30 минут')
+  }, 30 * 60 * 1000)
+}
+
 export function AnalysisRunner({ brief, transcripts, selectedModel, onComplete, onNext, onBack }: AnalysisRunnerProps) {
   const [analysisType, setAnalysisType] = useState<'normal' | 'parallel' | 'quick'>('normal')
   const [isRunning, setIsRunning] = useState(false)
@@ -167,7 +222,17 @@ export function AnalysisRunner({ brief, transcripts, selectedModel, onComplete, 
       const result = await response.json()
       console.log('✅ JSON успешно распарсен, размер:', JSON.stringify(result).length, 'символов')
       
-      // Добавляем информацию о входных данных
+      // Проверяем, это асинхронный ответ или обычный результат
+      if (result.requestId && result.status === 'processing') {
+        console.log('🚀 Получен асинхронный ответ, начинаем отслеживание...')
+        console.log('🆔 ID запроса:', result.requestId)
+        
+        // Запускаем отслеживание статуса
+        await trackAsyncAnalysis(result.requestId, onComplete)
+        return
+      }
+      
+      // Обычный синхронный результат
       result.inputData = {
         briefLength: brief.length,
         transcriptCount: transcripts.length,
