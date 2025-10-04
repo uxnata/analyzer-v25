@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-// Импортируем хранилище из основного файла
-// В реальном приложении это должно быть в отдельном модуле
-const activeAnalyses = new Map<string, any>()
+import { getAnalysisStatus } from '../../../lib/analysis-store'
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +10,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'requestId is required' }, { status: 400 })
     }
     
-    const analysis = activeAnalyses.get(requestId)
+    const analysis = getAnalysisStatus(requestId)
     
     if (!analysis) {
       return NextResponse.json({ error: 'Analysis not found' }, { status: 404 })

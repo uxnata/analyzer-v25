@@ -1405,8 +1405,7 @@ ${truncatedTranscript}
 }
 
 // Основная функция анализа
-// Хранилище для активных анализов
-const activeAnalyses = new Map<string, any>()
+import { activeAnalyses, setAnalysisStatus } from '../../lib/analysis-store'
 
 // Асинхронная обработка анализа
 async function processAnalysisAsync(requestId: string, brief: string, transcripts: string[], model: string, analysisMode: string) {
@@ -1414,7 +1413,7 @@ async function processAnalysisAsync(requestId: string, brief: string, transcript
     console.log(`🚀 Начинаем асинхронный анализ ${requestId}`)
     
     // Обновляем прогресс
-    activeAnalyses.set(requestId, {
+    setAnalysisStatus(requestId, {
       ...activeAnalyses.get(requestId),
       progress: 10,
       status: 'processing'
@@ -1426,7 +1425,7 @@ async function processAnalysisAsync(requestId: string, brief: string, transcript
       await new Promise(resolve => setTimeout(resolve, 5000)) // 5 сек на интервью
       
       const progress = 10 + ((i + 1) / transcripts.length) * 80
-      activeAnalyses.set(requestId, {
+      setAnalysisStatus(requestId, {
         ...activeAnalyses.get(requestId),
         progress: Math.round(progress),
         currentStep: `Обработка интервью ${i + 1} из ${transcripts.length}`
@@ -1434,7 +1433,7 @@ async function processAnalysisAsync(requestId: string, brief: string, transcript
     }
     
     // Завершаем анализ
-    activeAnalyses.set(requestId, {
+    setAnalysisStatus(requestId, {
       ...activeAnalyses.get(requestId),
       progress: 100,
       status: 'completed',
@@ -1445,7 +1444,7 @@ async function processAnalysisAsync(requestId: string, brief: string, transcript
     
   } catch (error) {
     console.error(`❌ Ошибка в асинхронном анализе ${requestId}:`, error)
-    activeAnalyses.set(requestId, {
+    setAnalysisStatus(requestId, {
       ...activeAnalyses.get(requestId),
       status: 'error',
       error: error instanceof Error ? error.message : 'Неизвестная ошибка'
@@ -1469,7 +1468,7 @@ export async function POST(request: NextRequest) {
       console.log('🚀 Запуск асинхронного анализа...')
       
       // Сохраняем данные для асинхронной обработки
-      activeAnalyses.set(requestId, {
+      setAnalysisStatus(requestId, {
         status: 'processing',
         progress: 0,
         brief,
