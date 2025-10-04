@@ -1572,8 +1572,17 @@ export async function POST(request: NextRequest) {
     
     // Простая очистка без принудительной сборки мусора
     console.log('✅ Результат готов к отправке')
-
-    return NextResponse.json(result, { headers: corsHeaders })
+    
+    // Проверка размера результата
+    const resultSize = JSON.stringify(result).length
+    console.log(`📏 Размер результата: ${Math.round(resultSize / 1024)}KB`)
+    
+    // Отправка результата
+    console.log('📤 Отправка результата фронтенду...')
+    const response = NextResponse.json(result, { headers: corsHeaders })
+    
+    console.log('✅ Результат отправлен успешно')
+    return response
 
   } catch (error) {
     console.error('❌ Ошибка анализа:', error)
