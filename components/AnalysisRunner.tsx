@@ -91,7 +91,15 @@ export function AnalysisRunner({ brief, transcripts, selectedModel, onComplete, 
           console.log(`🔄 Попытка ${attempt}/3 вызова API анализа...`)
           
           const controller = new AbortController()
-          const timeoutId = setTimeout(() => controller.abort(), 900000) // 15 минут таймаут для Railway
+          const timeoutId = setTimeout(() => {
+            console.log('⏰ Таймаут 15 минут истек, прерываем запрос')
+            controller.abort()
+          }, 900000) // 15 минут таймаут для Railway
+          
+          // Логируем каждые 30 секунд, что запрос еще идет
+          const progressInterval = setInterval(() => {
+            console.log(`⏳ Запрос выполняется уже ${Math.round((Date.now() - Date.now()) / 1000)} секунд...`)
+          }, 30000)
           
           const apiUrl = typeof window !== 'undefined' && window.location.hostname.includes('railway') 
             ? 'https://analyzer-v25-production.up.railway.app/api/analyze'
@@ -112,6 +120,7 @@ export function AnalysisRunner({ brief, transcripts, selectedModel, onComplete, 
           })
           
           clearTimeout(timeoutId)
+          clearInterval(progressInterval)
           
           console.log(`📊 Получен ответ: ${response.status} ${response.statusText}`)
           console.log(`📋 Заголовки ответа:`, Object.fromEntries(response.headers.entries()))
@@ -126,6 +135,7 @@ export function AnalysisRunner({ brief, transcripts, selectedModel, onComplete, 
           
         } catch (error: any) {
           lastError = error
+          clearInterval(progressInterval)
           console.error(`❌ Попытка ${attempt} не удалась:`, error?.message || 'Неизвестная ошибка')
           
           if (error.name === 'AbortError') {
