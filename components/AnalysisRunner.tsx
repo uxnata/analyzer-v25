@@ -87,6 +87,8 @@ export function AnalysisRunner({ brief, transcripts, selectedModel, onComplete, 
       let lastError: Error | null = null
       
       for (let attempt = 1; attempt <= 3; attempt++) {
+        let progressInterval: NodeJS.Timeout | null = null
+        
         try {
           console.log(`🔄 Попытка ${attempt}/3 вызова API анализа...`)
           
@@ -98,7 +100,7 @@ export function AnalysisRunner({ brief, transcripts, selectedModel, onComplete, 
           }, 1200000) // 20 минут таймаут для Railway
           
           // Логируем каждые 30 секунд, что запрос еще идет
-          const progressInterval = setInterval(() => {
+          progressInterval = setInterval(() => {
             const elapsed = Math.round((Date.now() - startTime) / 1000)
             console.log(`⏳ Запрос выполняется уже ${elapsed} секунд...`)
           }, 30000)
@@ -122,7 +124,7 @@ export function AnalysisRunner({ brief, transcripts, selectedModel, onComplete, 
           })
           
           clearTimeout(timeoutId)
-          clearInterval(progressInterval)
+          if (progressInterval) clearInterval(progressInterval)
           
           console.log(`📊 Получен ответ: ${response.status} ${response.statusText}`)
           console.log(`📋 Заголовки ответа:`, Object.fromEntries(response.headers.entries()))
@@ -137,7 +139,7 @@ export function AnalysisRunner({ brief, transcripts, selectedModel, onComplete, 
           
         } catch (error: any) {
           lastError = error
-          clearInterval(progressInterval)
+          if (progressInterval) clearInterval(progressInterval)
           console.error(`❌ Попытка ${attempt} не удалась:`, error?.message || 'Неизвестная ошибка')
           
           if (error.name === 'AbortError') {
