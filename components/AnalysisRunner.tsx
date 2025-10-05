@@ -13,7 +13,7 @@ interface AnalysisRunnerProps {
 }
 
 // Функция отслеживания асинхронного анализа
-async function trackAsyncAnalysis(requestId: string, onComplete: (result: any) => void) {
+async function trackAsyncAnalysis(requestId: string, onComplete: (result: any) => void, onProgress?: (progress: number, step: string) => void) {
   console.log('🔄 Начинаем отслеживание асинхронного анализа...')
   
   const checkStatus = async () => {
@@ -31,6 +31,11 @@ async function trackAsyncAnalysis(requestId: string, onComplete: (result: any) =
       const status = await response.json()
       console.log('📊 Статус анализа:', status.status, 'Прогресс:', status.progress + '%')
       
+      // Обновляем прогресс в UI
+      if (onProgress) {
+        onProgress(status.progress || 0, status.currentStep || 'Обработка...')
+      }
+      
       if (status.status === 'completed') {
         console.log('✅ Асинхронный анализ завершен!')
         onComplete(status.result)
@@ -47,30 +52,42 @@ async function trackAsyncAnalysis(requestId: string, onComplete: (result: any) =
     }
   }
   
-  // Проверяем статус каждые 5 секунд
+  // Проверяем статус каждые 3 секунды
   const interval = setInterval(async () => {
     try {
       const isCompleted = await checkStatus()
       if (isCompleted) {
         clearInterval(interval)
+        return // Выходим без ошибки
       }
     } catch (error) {
       clearInterval(interval)
       throw error
     }
-  }, 5000)
+  }, 3000)
   
-  // Таймаут через 30 минут
-  setTimeout(() => {
+  // Таймаут через 45 минут (увеличен)
+  const timeoutId = setTimeout(() => {
     clearInterval(interval)
-    throw new Error('Асинхронный анализ превысил таймаут 30 минут')
-  }, 30 * 60 * 1000)
+    console.error('⏰ Таймаут асинхронного анализа')
+    throw new Error('Асинхронный анализ превысил таймаут 45 минут')
+  }, 45 * 60 * 1000)
+  
+  // Очищаем таймаут при успешном завершении
+  const originalOnComplete = onComplete
+  onComplete = (result: any) => {
+    clearTimeout(timeoutId)
+    originalOnComplete(result)
+  }
 }
 
 export function AnalysisRunner({ brief, transcripts, selectedModel, onComplete, onNext, onBack }: AnalysisRunnerProps) {
   const [analysisType, setAnalysisType] = useState<'normal' | 'parallel' | 'quick'>('normal')
   const [isRunning, setIsRunning] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
+  const [asyncProgress, setAsyncProgress] = useState(0)
+  const [asyncStep, setAsyncStep] = useState('')
+  const [isAsyncMode, setIsAsyncMode] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentTranscript, setCurrentTranscript] = useState<number>(0)
   const [currentChunk, setCurrentChunk] = useState<number>(0)
@@ -227,8 +244,16 @@ export function AnalysisRunner({ brief, transcripts, selectedModel, onComplete, 
         console.log('🚀 Получен асинхронный ответ, начинаем отслеживание...')
         console.log('🆔 ID запроса:', result.requestId)
         
-        // Запускаем отслеживание статуса
-        await trackAsyncAnalysis(result.requestId, onComplete)
+        // Переключаемся в асинхронный режим
+        setIsAsyncMode(true)
+        setAsyncProgress(0)
+        setAsyncStep('Анализ запущен...')
+        
+        // Запускаем отслеживание статуса с колбэком прогресса
+        await trackAsyncAnalysis(result.requestId, onComplete, (progress, step) => {
+          setAsyncProgress(progress)
+          setAsyncStep(step)
+        })
         return
       }
       
@@ -270,32 +295,63 @@ export function AnalysisRunner({ brief, transcripts, selectedModel, onComplete, 
             <Brain className="h-8 w-8 text-primary" />
           </div>
         </div>
-        <h2 className="text-3xl font-bold text-foreground">Запуск анализа</h2>
+        <h2 className="text-3xl font-bold text-foreground">
+          {isAsyncMode ? 'Анализ в процессе...' : 'Запуск анализа'}
+        </h2>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          Выберите тип анализа и запустите AI-анализ ваших данных
+          {isAsyncMode ? 'Анализ выполняется в фоновом режиме' : 'Выберите тип анализа и запустите AI-анализ ваших данных'}
         </p>
       </div>
 
-      {/* Input Summary */}
-      <div className="bg-card border border-border rounded-lg p-6">
-        <h3 className="text-xl font-semibold text-foreground mb-4">Данные для анализа</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Бриф исследования</p>
-            <p className="font-medium">{brief.length} символов</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Транскрипты</p>
-            <p className="font-medium">{transcripts.length} интервью</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Общий объем: {transcripts.reduce((sum, t) => sum + t.length, 0).toLocaleString()} символов
-            </p>
+      {/* Асинхронный прогресс-бар */}
+      {isAsyncMode && (
+        <div className="bg-card border border-border rounded-lg p-6">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-foreground">Прогресс анализа</h3>
+              <span className="text-sm text-muted-foreground">{asyncProgress}%</span>
+            </div>
+            
+            <div className="w-full bg-muted rounded-full h-3">
+              <div 
+                className="bg-primary h-3 rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${asyncProgress}%` }}
+              />
+            </div>
+            
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">{asyncStep}</p>
+            </div>
+            
+            <div className="flex justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Analysis Options */}
-      <div className="bg-card border border-border rounded-lg p-6">
+      {/* Input Summary - скрываем в асинхронном режиме */}
+      {!isAsyncMode && (
+        <>
+          <div className="bg-card border border-border rounded-lg p-6">
+            <h3 className="text-xl font-semibold text-foreground mb-4">Данные для анализа</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Бриф исследования</p>
+                <p className="font-medium">{brief.length} символов</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Транскрипты</p>
+                <p className="font-medium">{transcripts.length} интервью</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Общий объем: {transcripts.reduce((sum, t) => sum + t.length, 0).toLocaleString()} символов
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Analysis Options */}
+          <div className="bg-card border border-border rounded-lg p-6">
         <h3 className="text-xl font-semibold text-foreground mb-4">Тип анализа</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <label className="flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer">
@@ -351,29 +407,31 @@ export function AnalysisRunner({ brief, transcripts, selectedModel, onComplete, 
         </div>
       </div>
 
-      {/* Start Button */}
-      <div className="text-center">
-        <button
-          onClick={runAnalysis}
-          disabled={isRunning}
-          className="inline-flex items-center px-8 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {isRunning ? (
-            <>
-              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-              Анализ выполняется...
-            </>
-          ) : (
-            <>
-              <Play className="h-5 w-5 mr-2" />
-              Запустить анализ
-            </>
-          )}
-        </button>
-      </div>
+          {/* Start Button */}
+          <div className="text-center">
+            <button
+              onClick={runAnalysis}
+              disabled={isRunning}
+              className="inline-flex items-center px-8 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isRunning ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Анализ выполняется...
+                </>
+              ) : (
+                <>
+                  <Play className="h-5 w-5 mr-2" />
+                  Запустить анализ
+                </>
+              )}
+            </button>
+          </div>
+        </>
+      )}
 
-      {/* Progress */}
-      {isRunning && (
+      {/* Progress - показываем только в синхронном режиме */}
+      {isRunning && !isAsyncMode && (
         <div className="bg-card border border-border rounded-lg p-6">
           <h3 className="text-xl font-semibold text-foreground mb-4">Прогресс анализа</h3>
           
