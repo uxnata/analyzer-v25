@@ -147,6 +147,76 @@ class RequestQueue {
 // Глобальная очередь для API запросов
 const apiQueue = new RequestQueue(config.analysis.max_concurrent_requests)
 
+// Глобальный трекер токенов
+interface TokenUsage {
+  prompt_tokens: number
+  completion_tokens: number
+  total_tokens: number
+  cost_usd: number
+}
+
+class TokenTracker {
+  private totalPromptTokens = 0
+  private totalCompletionTokens = 0
+  private totalTokens = 0
+  private totalCost = 0
+  private apiCalls = 0
+  
+  // Примерные цены для Claude 3.5 Sonnet (на 1M токенов)
+  private readonly PRICE_PER_1M_INPUT = 3.00  // $3 за 1M input токенов
+  private readonly PRICE_PER_1M_OUTPUT = 15.00 // $15 за 1M output токенов
+  
+  trackUsage(usage: any) {
+    this.apiCalls++
+    const promptTokens = usage?.prompt_tokens || 0
+    const completionTokens = usage?.completion_tokens || 0
+    const totalTokens = usage?.total_tokens || (promptTokens + completionTokens)
+    
+    this.totalPromptTokens += promptTokens
+    this.totalCompletionTokens += completionTokens
+    this.totalTokens += totalTokens
+    
+    // Рассчитываем стоимость
+    const inputCost = (promptTokens / 1000000) * this.PRICE_PER_1M_INPUT
+    const outputCost = (completionTokens / 1000000) * this.PRICE_PER_1M_OUTPUT
+    this.totalCost += inputCost + outputCost
+    
+    console.log(`📊 Токены вызова #${this.apiCalls}: ${promptTokens} input + ${completionTokens} output = ${totalTokens} total ($${(inputCost + outputCost).toFixed(4)})`)
+  }
+  
+  getStats(): TokenUsage {
+    return {
+      prompt_tokens: this.totalPromptTokens,
+      completion_tokens: this.totalCompletionTokens,
+      total_tokens: this.totalTokens,
+      cost_usd: this.totalCost
+    }
+  }
+  
+  logFinalStats() {
+    console.log('\n' + '='.repeat(60))
+    console.log('💰 ИТОГОВАЯ СТАТИСТИКА ИСПОЛЬЗОВАНИЯ ТОКЕНОВ')
+    console.log('='.repeat(60))
+    console.log(`🔢 Всего API вызовов: ${this.apiCalls}`)
+    console.log(`📥 Input токенов: ${this.totalPromptTokens.toLocaleString()}`)
+    console.log(`📤 Output токенов: ${this.totalCompletionTokens.toLocaleString()}`)
+    console.log(`📊 Всего токенов: ${this.totalTokens.toLocaleString()}`)
+    console.log(`💵 Общая стоимость: $${this.totalCost.toFixed(4)} USD`)
+    console.log(`💵 В рублях (~95₽/$): ${(this.totalCost * 95).toFixed(2)} ₽`)
+    console.log('='.repeat(60) + '\n')
+  }
+  
+  reset() {
+    this.totalPromptTokens = 0
+    this.totalCompletionTokens = 0
+    this.totalTokens = 0
+    this.totalCost = 0
+    this.apiCalls = 0
+  }
+}
+
+const tokenTracker = new TokenTracker()
+
 // Функция для вызова OpenRouter API
 async function callOpenRouterAPI(prompt: string, model: string = 'anthropic/claude-3.5-sonnet', maxRetries = 3): Promise<string> {
   const apiKey = process.env.OPENROUTER_API_KEY
@@ -192,6 +262,12 @@ async function callOpenRouterAPI(prompt: string, model: string = 'anthropic/clau
       }
 
       const data = await response.json()
+      
+      // Отслеживаем использование токенов
+      if (data.usage) {
+        tokenTracker.trackUsage(data.usage)
+      }
+      
       return data.choices[0].message.content
     } catch (error: any) {
       console.error(`❌ Попытка ${attempt} не удалась:`, error?.message || 'Неизвестная ошибка')
@@ -1415,6 +1491,10 @@ ${truncatedTranscript}
 async function performFullAnalysis(brief: string, transcripts: string[], model: string, analysisMode: string) {
   console.log('🔍 Начинаем полный анализ...')
   
+  // Сбрасываем счетчик токенов перед новым анализом
+  tokenTracker.reset()
+  console.log('🔄 Счетчик токенов сброшен')
+  
   // Проверка количества интервью
   if (transcripts.length < config.analysis.min_interviews_recommended) {
     console.log(`⚠️  ВНИМАНИЕ: Рекомендуется минимум ${config.analysis.min_interviews_recommended} интервью!`)
@@ -1549,6 +1629,9 @@ async function performFullAnalysis(brief: string, transcripts: string[], model: 
   console.log('✅ Анализ завершен:')
   console.log(`  📊 Найдено: ${result.overview.totalProblems} проблем, ${result.overview.totalNeeds} потребностей`)
   console.log(`  👥 Персонажи: ${result.personas.primary.name}, ${result.personas.secondary.name}`)
+  
+  // Выводим финальную статистику токенов
+  tokenTracker.logFinalStats()
   
   // Финальная проверка памяти
   const finalMemUsage = process.memoryUsage()
