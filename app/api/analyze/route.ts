@@ -1069,6 +1069,8 @@ async function generateBriefQuestions(summaries: InterviewSummary[], briefContex
   const extractedQuestions = extractQuestionsFromBrief(briefContext)
   const extractedHypotheses = extractHypothesesFromBrief(briefContext)
   
+  console.log(`📝 Извлечено из брифа: ${extractedQuestions.length} вопросов, ${extractedHypotheses.length} гипотез`)
+  
   if (extractedQuestions.length === 0 && extractedHypotheses.length === 0) {
     console.log('   ⚠️ Вопросы и гипотезы из брифа не найдены')
     return []
@@ -1076,12 +1078,12 @@ async function generateBriefQuestions(summaries: InterviewSummary[], briefContex
   
   const prompt = `${briefContext}
 
-Ты — эксперт по анализу пользователей. Проанализируй интервью и дай ИСЧЕРПЫВАЮЩИЕ ответы на конкретные вопросы и гипотезы из брифа.
+Ты — эксперт по анализу пользователей. Проанализируй интервью и дай ИСЧЕРПЫВАЮЩИЕ ответы на ВСЕ вопросы и гипотезы из брифа.
 
-НАЙДЕННЫЕ ВОПРОСЫ ИЗ БРИФА:
+НАЙДЕННЫЕ ВОПРОСЫ ИЗ БРИФА (всего ${extractedQuestions.length}):
 ${extractedQuestions.length > 0 ? extractedQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n') : 'Вопросы не найдены'}
 
-НАЙДЕННЫЕ ГИПОТЕЗЫ ИЗ БРИФА:
+НАЙДЕННЫЕ ГИПОТЕЗЫ ИЗ БРИФА (всего ${extractedHypotheses.length}):
 ${extractedHypotheses.length > 0 ? extractedHypotheses.map((h, i) => `${i + 1}. ${h}`).join('\n') : 'Гипотезы не найдены'}
 
 ДАННЫЕ ИЗ ИНТЕРВЬЮ:
@@ -1093,10 +1095,10 @@ ${JSON.stringify(summaries.map(s => ({
   key_quotes: s.keyQuotes
 })), null, 2)}
 
-Для КАЖДОГО вопроса из брифа дай детальный ответ на основе данных интервью.
-Для КАЖДОЙ гипотезы определи: ПОДТВЕРДИЛАСЬ или НЕ ПОДТВЕРДИЛАСЬ на основе данных интервью.
+ВАЖНО: Для КАЖДОГО из ${extractedQuestions.length} вопросов дай детальный ответ.
+ВАЖНО: Для КАЖДОЙ из ${extractedHypotheses.length} гипотез определи статус (confirmed/not_confirmed/partially_confirmed).
 
-Верни ТОЛЬКО валидный JSON:
+Верни ТОЛЬКО валидный JSON со ВСЕМИ вопросами и гипотезами:
 {
     "questions": [
         {
@@ -1120,7 +1122,9 @@ ${JSON.stringify(summaries.map(s => ({
 
   try {
     const response = await callOpenRouterAPI(prompt, model)
-    const result = JSON.parse(response)
+    const result = extractJSON(response) // Используем extractJSON вместо JSON.parse
+    
+    console.log(`📊 Получено ответов: ${result.questions?.length || 0} вопросов, ${result.hypotheses?.length || 0} гипотез`)
     
     // Объединяем вопросы и гипотезы в один массив для отображения
     const allItems = [
@@ -1128,9 +1132,11 @@ ${JSON.stringify(summaries.map(s => ({
       ...(result.hypotheses || []).map((h: any) => ({ ...h, type: 'hypothesis' }))
     ]
     
+    console.log(`✅ Всего элементов для отображения: ${allItems.length}`)
+    
     return allItems
   } catch (error) {
-    console.error('Ошибка генерации вопросов брифа:', error)
+    console.error('❌ Ошибка генерации вопросов брифа:', error)
     return []
   }
 }
